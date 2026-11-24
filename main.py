@@ -8,11 +8,14 @@ The entry text is fixed in the ENTRY constant below and is validated against
 the competition gate before anything is written: UTF-8 encodable, 1-320
 characters, a single non-blank line, exactly one sentence ending in a single
 terminal period. main() then writes the entry byte-for-byte to
-/output/entry.txt (the path the grader reads) and to the local entry.txt
-beside this file, verifying each write by reading it back.
+/output/entry.txt (the path the grader reads), verifying by read-back,
+and, best-effort, to the local entry.txt beside this file (the grader
+runs with a read-only repository, so a strict local write would abort
+an otherwise valid entry).
 """
 
 import os
+import sys
 
 ENTRY = ("The senator who drafted the AI Safety Act spent the morning dictating rules for machines that learn, then begged his intern to print the crypto bill because his Word file would not become a PDF.")
 
@@ -74,9 +77,13 @@ def main():
     entry = validate_entry()
     data = entry.encode("utf-8")
     os.makedirs("/output", exist_ok=True)
-    targets = ["/output/entry.txt", os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry.txt")]
-    for path in targets:
-        write_and_verify(path, data)
+    write_and_verify("/output/entry.txt", data)
+    # Best-effort local copy (see module docstring).
+    local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry.txt")
+    try:
+        write_and_verify(local_path, data)
+    except OSError as exc:
+        print("warning: local copy skipped (%s)" % exc, file=sys.stderr)
     print("characters: %d" % len(entry))
 
 
